@@ -1,23 +1,14 @@
 #include <arpa/inet.h>
-#include <errno.h>
 #include <netinet/in.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <sys/errno.h>
 
 #define BACKLOG 10
 #define BUFFER_SIZE 1024
-
-/**
- * 清空缓冲区
- */
-void cache_flush() {
-  int c;
-  while ((c = getchar()) != '\n' && c != EOF)
-    ;
-}
 
 /**
  * 回声服务器
@@ -35,7 +26,7 @@ void echo_server(const int port) {
   serve_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
   serve_addr.sin_port = htons(port);
   // 绑定地址族、IP与端口
-  bind(serv_socket, (struct sockaddr*)&serve_addr, sizeof(serve_addr));
+  bind(serv_socket, (struct sockaddr *) &serve_addr, sizeof(serve_addr));
 
   // 监听
   // backlog 缓冲区request.queue长度 (可默认为[SOMAXCONN]由系统调配)
@@ -47,7 +38,7 @@ void echo_server(const int port) {
   char buffer[BUFFER_SIZE] = {0};
   while (1) {
     int client_socket =
-        accept(serv_socket, (struct sockaddr*)&client_addr, &client_addr_size);
+        accept(serv_socket, (struct sockaddr *) &client_addr, &client_addr_size);
 
     // 回声
     read(client_socket, buffer, sizeof(buffer) - 1);
@@ -65,25 +56,34 @@ void echo_server(const int port) {
 /**
  * 服务器文件下载
  */
-void file_download(const int port, const char* file) {
-  FILE* fp = fopen(file, "rb");
+void file_download_server(const int port, const char *file) {
+  FILE *fp = fopen(file, "rb");
   if (fp == NULL) {
-    perror("打开文件失败");
-    exit(0);
+    printf("[%s]打开文件失败: %s", file, strerror(errno));
+    exit(1);
   }
 
   // 创建套接字
   int serv_socket = socket(PF_INET, SOCK_STREAM, 0);
   // 绑定
-  // struct in_addr ip = {s_addr : inet_addr("127.0.0.1")};
-  struct sockaddr_in serv_addr = {
-      .sin_family = PF_INET,
-      .sin_port = port,
-      .sin_addr = {.s_addr = inet_addr("127.0.0.1")},
-  };
-  bind(serv_socket, (struct sockaddr*)&serv_addr, sizeof(serv_addr));
+  struct sockaddr_in serv_addr;
+  memset(&serv_addr, 0, sizeof(serv_addr));
+  serv_addr.sin_family = PF_INET;
+  serv_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+  serv_addr.sin_port = htons(port);
+  int bind_res = bind(serv_socket, (struct sockaddr *) &serv_addr, sizeof(serv_addr));
+  if (bind_res != 0) {
+    perror("socket_serve绑定失败");
+    close(serv_socket);
+    exit(1);
+  }
   // 监听
-  listen(serv_socket, BACKLOG);
+  int listen_res = listen(serv_socket, BACKLOG);
+  if (listen_res != 0) {
+    perror("socket_serve监听失败");
+    close(serv_socket);
+    exit(1);
+  }
   // 接收请求
   struct sockaddr clnt_addr;
   socklen_t clnt_addr_size = sizeof(clnt_addr);
@@ -91,7 +91,7 @@ void file_download(const int port, const char* file) {
 
   // 下载
   char buffer[BUFFER_SIZE] = {0};
-  int nCount;
+  size_t nCount;
   while ((nCount = fread(buffer, 1, BUFFER_SIZE, fp)) > 0) {
     write(clnt_socket, buffer, nCount);
   }
@@ -102,13 +102,4 @@ void file_download(const int port, const char* file) {
   fclose(fp);
   close(serv_socket);
   close(clnt_socket);
-}
-
-int main() {
-  // 回声
-  echo_server(9501);
-
-  // 下载音频
-  file_download(9502, "./test.amr");
-  return 0;
 }

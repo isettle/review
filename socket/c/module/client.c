@@ -7,19 +7,11 @@
 #include <unistd.h>
 
 #define BUFFER_SIZE 1024
-void echo();
-void file_download();
-
-int main() {
-  // echo();
-  file_download();
-  return 0;
-}
 
 /**
  * 回声客户端
  */
-void echo() {
+void echo_client() {
   // ip4地址结构体
   struct sockaddr_in serv_addr;
   memset(&serv_addr, 0, sizeof(serv_addr));
@@ -35,7 +27,7 @@ void echo() {
     int serv_socket = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
     // 连接
     int conn_err =
-        connect(serv_socket, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
+        connect(serv_socket, (struct sockaddr *) &serv_addr, sizeof(serv_addr));
 
     if (conn_err == SO_ERROR) {
       perror("连接失败");
@@ -60,7 +52,7 @@ void echo() {
 /**
  * 文件下载
  */
-void file_download() {
+void file_download_client() {
   printf("保存文件名称:");
   char fileName[20] = {0};
   scanf("%s", fileName);
@@ -80,9 +72,8 @@ void file_download() {
   // 创建套接字
   int serv_socket = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
   // 连接
-  int conn_err =
-      connect(serv_socket, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
-  if (conn_err == SO_ERROR) {
+  int conn_err = connect(serv_socket, (struct sockaddr *) &serv_addr, sizeof(serv_addr));
+  if (conn_err != 0) {
     perror("连接失败");
     close(serv_socket);
     exit(1);
@@ -90,7 +81,7 @@ void file_download() {
 
   // 读取
   char buffer[BUFFER_SIZE] = {0};
-  int nCount;
+  ssize_t nCount;
   while ((nCount = read(serv_socket, buffer, BUFFER_SIZE)) > 0) {
     fwrite(buffer, nCount, 1, fp);
   }
