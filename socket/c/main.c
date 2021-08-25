@@ -39,8 +39,12 @@ int server(const char *func) {
     file_download_server(9502, "../test.amr");
     return 0;
   }
+  // UDP回声
+  if(strcmp(func, "echo_udp") == 0) {
+    echo_udp_server(9503);
+  }
 
-  printf("server服务器参数错误：echo OR download");
+  printf("server服务器参数错误：echo/echo_udp/download");
   return 1;
 }
 
@@ -55,7 +59,11 @@ int client(const char *func) {
     file_download_client();
     return 0;
   }
+  // UDP回声
+  if(strcmp(func, "echo_udp") == 0) {
+    echo_udp_client(9503);
+  }
 
-  printf("client服务器参数错误：echo OR download");
+  printf("client服务器参数错误：echo/echo_udp/download");
   return 1;
 }

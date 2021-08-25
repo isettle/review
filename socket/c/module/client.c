@@ -91,3 +91,36 @@ void file_download_client() {
   close(serv_socket);
   fclose(fp);
 }
+
+void echo_udp_client(int port) {
+  int sock_clnt = socket(PF_INET, SOCK_DGRAM, 0);
+
+  struct sockaddr_in clnt_addr;
+  memset(&clnt_addr, 0, sizeof(clnt_addr));
+  clnt_addr.sin_family = PF_INET;
+  clnt_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+  clnt_addr.sin_port = htons(port);
+  socklen_t clnt_addr_size = sizeof(clnt_addr);
+
+  while (1) {
+    char buffer_send[BUFFER_SIZE] = {0};
+    printf("请求输入：");
+    scanf("%s", buffer_send);
+
+    ssize_t send_res =
+        sendto(sock_clnt, buffer_send, sizeof(buffer_send), 0, (struct sockaddr *) &clnt_addr, clnt_addr_size);
+    if (send_res == -1) {
+      perror("发送失败");
+      close(sock_clnt);
+      exit(1);
+    }
+    if (strcmp(buffer_send, "quit") == 0) {
+      shutdown(sock_clnt, SHUT_WR);
+      break;
+    }
+    recvfrom(sock_clnt, buffer_send, sizeof(buffer_send), 0, (struct sockaddr *) &clnt_addr, &clnt_addr_size);
+    printf("server echo %s\n", buffer_send);
+  }
+
+  close(sock_clnt);
+}

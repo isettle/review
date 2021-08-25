@@ -8,12 +8,12 @@
 #include <sys/errno.h>
 
 #define BACKLOG 10
-#define BUFFER_SIZE 1024
+#define BUFFER_SIZE 100
 
 /**
  * 回声服务器
  */
-void echo_server(const int port) {
+void echo_server(int port) {
   // 创建套接字
   int serv_socket = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
 
@@ -56,7 +56,7 @@ void echo_server(const int port) {
 /**
  * 服务器文件下载
  */
-void file_download_server(const int port, const char *file) {
+void file_download_server(int port, const char *file) {
   FILE *fp = fopen(file, "rb");
   if (fp == NULL) {
     printf("[%s]打开文件失败: %s", file, strerror(errno));
@@ -102,4 +102,44 @@ void file_download_server(const int port, const char *file) {
   fclose(fp);
   close(serv_socket);
   close(clnt_socket);
+}
+
+void echo_udp_server(int port) {
+  // create socket
+  int serv_socket = socket(PF_INET, SOCK_DGRAM, 0);
+  // bind
+  struct sockaddr_in sock_addr;
+  memset(&sock_addr, 0, sizeof(sock_addr));
+  sock_addr.sin_family = PF_INET;
+  sock_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+  sock_addr.sin_port = htons(port);
+  int bind_res = bind(serv_socket, (struct sockaddr *) &sock_addr, sizeof(sock_addr));
+  if (bind_res != 0) {
+    perror("udp echo server bind failed:");
+    close(serv_socket);
+    exit(1);
+  }
+  // client
+  struct sockaddr_in sock_clnt;
+  socklen_t sock_clnt_size = sizeof(sock_clnt);
+
+  // recv
+  char *buffer_recv[BUFFER_SIZE] = {0};
+  while (1) {
+    ssize_t recv_res =
+        recvfrom(serv_socket, buffer_recv, sizeof(buffer_recv), 0, (struct sockaddr *) &sock_clnt, &sock_clnt_size);
+    if (recv_res == -1) {
+      perror("udp echo server recv failed:");
+      close(serv_socket);
+      exit(1);
+    }
+    if (strcmp((const char *) buffer_recv, "quit") == 0) {
+      break;
+    }
+    // send
+    sendto(serv_socket, buffer_recv, sizeof(buffer_recv), 0, (struct sockaddr *) &sock_clnt, sock_clnt_size);
+    memset(buffer_recv, 0, BUFFER_SIZE);
+  }
+
+  close(serv_socket);
 }
